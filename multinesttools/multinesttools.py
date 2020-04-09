@@ -1,8 +1,10 @@
 import os
+import corner
 import pickle
 import numbers
 import numpy as np
 from functools import partial
+import matplotlib.pyplot as plt
 
 
 def var_param_dict(name, fit=True, prior='uniform', default=None, tex=None,
@@ -118,10 +120,13 @@ def vector_to_param_dict(vector, var_param_list):
     return param_dict
 
 
-def read_posterior(directory, format='vector', weight='equal',
+def read_posterior(directory, format='vector', equal_weight=True,
                    n_samples='max'):
 
-    if weight == 'unequal':
+    if equal_weight:
+        vectors = np.genfromtxt(os.path.join(
+            directory, 'post_equal_weights.dat'))[:, :-1]
+    else:
         ev = np.genfromtxt(os.path.join(directory, 'ev.dat'))
         vectors_ev = ev[:, :-3]
         weights_ev = (ev[:, -3] + ev[:, -2])
@@ -137,12 +142,12 @@ def read_posterior(directory, format='vector', weight='equal',
         weights = weights - np.amax(weights)
         weights = np.exp(weights)
 
-    else:
-        vectors = np.genfromtxt(os.path.join(
-            directory, 'post_equal_weights.dat'))[:, :-1]
-
     if isinstance(n_samples, int):
         vectors = vectors[np.random.randint(len(vectors), size=n_samples)]
+    else:
+        if not n_samples == 'max':
+            raise RuntimeError('Cannot understand number of samples!' +
+                               ' Received {}.'.format(n_samples))
 
     if format == 'vector':
         output = vectors
@@ -151,10 +156,10 @@ def read_posterior(directory, format='vector', weight='equal',
         output = [vector_to_param_dict(vector, var_param_list) for vector in
                   vectors]
 
-    if weight == 'unequal':
-        return output, weights
-    else:
+    if equal_weight:
         return output
+    else:
+        return output, weights
 
 
 def read_best_fit(directory, format='vector'):
@@ -172,6 +177,63 @@ def read_best_fit(directory, format='vector'):
     return output
 
 
+def read_max_log_likelihood(directory, format='vector', return_log_likelihood=False):
+
+    live = np.genfromtxt(os.path.join(directory, 'phys_live.points'))
+    return np.amax(live[:, -2])
+
+
+def read_log_evidence(directory):
+    with open(os.path.join(directory, 'stats.dat')) as fstream:
+        first_line = fstream.readline()
+        second_line = fstream.readline()
+        log_ev = float(second_line.split(":")[1].split("+/-")[0])
+        fstream.close()
+    return log_ev
+
+
 def tex_labels_of_fit(var_param_list):
     labels = np.array([var_param['tex'] for var_param in var_param_list])
     return labels[[var_param['fit'] for var_param in var_param_list]]
+
+
+def make_corner_plot(directory, equal_weight=False):
+    var_param_list = read_var_param_list(directory)
+    labels = tex_labels_of_fit(var_param_list)
+    if equal_weight:
+        samples = read_posterior(directory, equal_weight=True)
+        weights = np.ones(len(samples))
+    else:
+        samples, weights = read_posterior(directory, equal_weight=False)
+
+    ndim = len(labels)
+    fig, axes = plt.subplots(ndim, ndim, figsize=(7.0, 7.0))
+    corner.corner(np.transpose(np.transpose(samples)),
+                  weights=weights, plot_datapoints=False, plot_density=False,
+                  labels=labels, color='royalblue', show_titles=False,
+                  levels=(0.68, 0.95), bins=20,
+                  range=np.ones(ndim) * 0.99, fill_contours=True, fig=fig,
+                  hist_kwargs={'color': 'gold', 'histtype': 'stepfilled',
+                               'edgecolor': 'black', 'linewidth': 0.5},
+                  max_n_ticks=3, contour_kwargs={'linewidths': 0.5,
+                                                 'colors': 'black'})
+
+    axes = np.array(fig.axes).reshape((ndim, ndim))
+    for yi in range(ndim):
+        for xi in range(yi + 1):
+            ax = axes[yi, xi]
+            ax.tick_params(axis='x', labelsize=8, rotation=90)
+            ax.xaxis.set_label_coords(0.5, -0.5)
+            ax.tick_params(axis='y', labelsize=8, rotation=0)
+            ax.yaxis.set_label_coords(-0.5, 0.5)
+
+    for yi in range(ndim):
+        ax = axes[yi, yi]
+        ax.tick_params(axis='y', which='both', left=False, right=False)
+
+    plt.tight_layout(pad=0.3)
+    plt.subplots_adjust(wspace=0.05, hspace=0.05)
+    plt.savefig(os.path.join(directory, 'posterior.pdf'))
+    plt.savefig(os.path.join(directory, 'posterior.png'), dpi=300)
+    plt.close()
+
