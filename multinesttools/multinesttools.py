@@ -1,4 +1,5 @@
 import os
+import inspect
 import corner
 import pickle
 import numbers
@@ -120,7 +121,7 @@ def vector_to_param_dict(vector, var_param_list):
     return param_dict
 
 
-def read_posterior(directory, format='vector', equal_weight=True,
+def read_posterior(directory, format=np.ndarray, equal_weight=True,
                    n_samples='max'):
 
     if equal_weight:
@@ -149,12 +150,18 @@ def read_posterior(directory, format='vector', equal_weight=True,
             raise RuntimeError('Cannot understand number of samples!' +
                                ' Received {}.'.format(n_samples))
 
-    if format == 'vector':
+    if not inspect.isclass(format):
+        raise RuntimeError('format must be a class.')
+
+    if format == np.ndarray:
         output = vectors
-    elif format == 'param_dict':
+    elif format == dict:
         var_param_list = read_var_param_list(directory)
         output = [vector_to_param_dict(vector, var_param_list) for vector in
                   vectors]
+    else:
+        raise RuntimeError('Unkown output format. Received {}.'.format(
+            format.__name__))
 
     if equal_weight:
         return output
@@ -162,22 +169,28 @@ def read_posterior(directory, format='vector', equal_weight=True,
         return output, weights
 
 
-def read_best_fit(directory, format='vector'):
+def read_best_fit(directory, format=np.ndarray):
 
     live = np.genfromtxt(os.path.join(directory, 'phys_live.points'))
     vectors_live = live[:, :-2]
     vector = vectors_live[np.argmax(live[:, -2])]
 
-    if format == 'vector':
+    if not inspect.isclass(format):
+        raise RuntimeError('format must be a class.')
+
+    if format == np.ndarray:
         output = vector
-    elif format == 'param_dict':
+    elif format == dict:
         var_param_list = read_var_param_list(directory)
         output = vector_to_param_dict(vector, var_param_list)
+    else:
+        raise RuntimeError('Unkown output format. Received {}.'.format(
+            format.__name__))
 
     return output
 
 
-def read_max_log_likelihood(directory, format='vector', return_log_likelihood=False):
+def read_max_log_likelihood(directory):
 
     live = np.genfromtxt(os.path.join(directory, 'phys_live.points'))
     return np.amax(live[:, -2])
@@ -236,4 +249,3 @@ def make_corner_plot(directory, equal_weight=False):
     plt.savefig(os.path.join(directory, 'posterior.pdf'))
     plt.savefig(os.path.join(directory, 'posterior.png'), dpi=300)
     plt.close()
-
