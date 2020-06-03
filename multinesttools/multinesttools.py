@@ -196,11 +196,15 @@ def read_max_log_likelihood(directory):
     return np.amax(live[:, -2])
 
 
-def read_log_evidence(directory):
+def read_log_evidence(directory, ins=True):
     with open(os.path.join(directory, 'stats.dat')) as fstream:
         first_line = fstream.readline()
         second_line = fstream.readline()
-        log_ev = float(second_line.split(":")[1].split("+/-")[0])
+        if ins:
+            line = second_line
+        else:
+            line = first_line
+        log_ev = float(line.split(":")[1].split("+/-")[0])
         fstream.close()
     return log_ev
 
@@ -210,7 +214,7 @@ def tex_labels_of_fit(var_param_list):
     return labels[[var_param['fit'] for var_param in var_param_list]]
 
 
-def make_corner_plot(directory, equal_weight=False):
+def make_corner_plot(directory, equal_weight=False, truths=None):
     var_param_list = read_var_param_list(directory)
     labels = tex_labels_of_fit(var_param_list)
     if equal_weight:
@@ -224,7 +228,7 @@ def make_corner_plot(directory, equal_weight=False):
     corner.corner(np.transpose(np.transpose(samples)),
                   weights=weights, plot_datapoints=False, plot_density=False,
                   labels=labels, color='royalblue', show_titles=False,
-                  levels=(0.68, 0.95), bins=20,
+                  levels=(0.68, 0.95), bins=20, truths=truths,
                   range=np.ones(ndim) * 0.99, fill_contours=True, fig=fig,
                   hist_kwargs={'color': 'gold', 'histtype': 'stepfilled',
                                'edgecolor': 'black', 'linewidth': 0.5},
