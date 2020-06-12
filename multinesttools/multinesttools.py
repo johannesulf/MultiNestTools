@@ -122,19 +122,19 @@ def vector_to_param_dict(vector, var_param_list):
 
 
 def read_posterior(directory, format=np.ndarray, equal_weight=True,
-                   n_samples='max'):
+                   n_samples='max', logl=False):
 
     if equal_weight:
         vectors = np.genfromtxt(os.path.join(
-            directory, 'post_equal_weights.dat'))[:, :-1]
+            directory, 'post_equal_weights.dat'))
     else:
         ev = np.genfromtxt(os.path.join(directory, 'ev.dat'))
-        vectors_ev = ev[:, :-3]
+        vectors_ev = ev[:, :-2]
         weights_ev = (ev[:, -3] + ev[:, -2])
         vol_min = ev[-1, -2]
 
         live = np.genfromtxt(os.path.join(directory, 'phys_live.points'))
-        vectors_live = live[:, :-2]
+        vectors_live = live[:, :-1]
         weights_live = np.repeat(vol_min, len(live)) + live[:, -2]
 
         vectors = np.concatenate([vectors_ev, vectors_live])
@@ -155,8 +155,11 @@ def read_posterior(directory, format=np.ndarray, equal_weight=True,
 
     if format == np.ndarray:
         output = vectors
+        if not llik:
+            output = output[:, :-1]
     elif format == dict:
         var_param_list = read_var_param_list(directory)
+        var_param_list.append(var_param_dict('log L', fit=True))
         output = [vector_to_param_dict(vector, var_param_list) for vector in
                   vectors]
     else:
