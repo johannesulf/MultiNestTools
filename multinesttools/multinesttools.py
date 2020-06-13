@@ -155,7 +155,7 @@ def read_posterior(directory, format=np.ndarray, equal_weight=True,
 
     if format == np.ndarray:
         output = vectors
-        if not llik:
+        if not logl:
             output = output[:, :-1]
     elif format == dict:
         var_param_list = read_var_param_list(directory)
