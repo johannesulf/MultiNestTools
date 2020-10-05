@@ -143,7 +143,7 @@ def read_posterior(directory, format=np.ndarray, equal_weight=True,
         weights = weights - np.amax(weights)
         weights = np.exp(weights)
 
-    if isinstance(n_samples, int):
+    if isinstance(n_samples, int) or isinstance(n_samples, np.integer):
         vectors = vectors[np.random.randint(len(vectors), size=n_samples)]
     else:
         if not n_samples == 'max':
